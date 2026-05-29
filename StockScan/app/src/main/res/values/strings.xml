@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">StockScan</string>
+    <string name="app_tagline">NSE · BSE · Screener</string>
+    <string name="loading">Loading markets…</string>
+    <string name="no_internet">No internet connection. Using cached data.</string>
+    <string name="share_stock">Share Stock</string>
+</resources>

@@ -1,0 +1,1372 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>StockScan — NSE/BSE Screener</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=JetBrains+Mono:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #080c10;
+    --surface: #0d1117;
+    --surface2: #161b22;
+    --surface3: #1c2330;
+    --border: #21262d;
+    --border2: #30363d;
+    --accent: #00ff88;
+    --accent2: #00c4ff;
+    --accent3: #ff6b35;
+    --red: #ff4757;
+    --green: #00ff88;
+    --text: #e6edf3;
+    --text2: #8b949e;
+    --text3: #484f58;
+    --glow: 0 0 20px rgba(0,255,136,0.15);
+    --glow2: 0 0 20px rgba(0,196,255,0.15);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; -webkit-tap-highlight-color:transparent; }
+
+  body {
+    font-family: 'JetBrains Mono', monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* Phone shell */
+  .phone-shell {
+    max-width: 420px;
+    margin: 0 auto;
+    min-height: 100vh;
+    position: relative;
+    background: var(--bg);
+    overflow: hidden;
+  }
+
+  /* Ambient background */
+  .ambient {
+    position: fixed;
+    top: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 420px;
+    height: 100vh;
+    pointer-events: none;
+    z-index: 0;
+    overflow: hidden;
+  }
+  .ambient::before {
+    content: '';
+    position: absolute;
+    top: -100px; left: -80px;
+    width: 300px; height: 300px;
+    background: radial-gradient(circle, rgba(0,255,136,0.04) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+  .ambient::after {
+    content: '';
+    position: absolute;
+    top: 200px; right: -80px;
+    width: 250px; height: 250px;
+    background: radial-gradient(circle, rgba(0,196,255,0.04) 0%, transparent 70%);
+    border-radius: 50%;
+  }
+
+  /* Status bar */
+  .status-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 20px 6px;
+    font-size: 11px;
+    color: var(--text2);
+    font-weight: 500;
+    position: relative;
+    z-index: 10;
+  }
+  .status-right { display:flex; gap:6px; align-items:center; }
+  .signal-bars { display:flex; gap:2px; align-items:flex-end; height:12px; }
+  .signal-bars span {
+    width:3px; background:var(--text2); border-radius:1px;
+    animation: signalPulse 2s ease-in-out infinite;
+  }
+  .signal-bars span:nth-child(1) { height:4px; }
+  .signal-bars span:nth-child(2) { height:7px; animation-delay:0.2s; }
+  .signal-bars span:nth-child(3) { height:10px; animation-delay:0.4s; }
+  .signal-bars span:nth-child(4) { height:12px; animation-delay:0.6s; }
+  @keyframes signalPulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+
+  /* Header */
+  .header {
+    padding: 8px 20px 12px;
+    position: relative;
+    z-index: 10;
+    animation: slideDown 0.5s ease both;
+  }
+  @keyframes slideDown { from{opacity:0;transform:translateY(-20px)} to{opacity:1;transform:translateY(0)} }
+
+  .header-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 16px;
+  }
+
+  .logo {
+    font-family: 'Syne', sans-serif;
+    font-size: 22px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .logo span { color: var(--accent); }
+
+  .header-actions { display:flex; gap:10px; }
+
+  .icon-btn {
+    width: 36px; height: 36px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-size: 16px;
+    color: var(--text2);
+  }
+  .icon-btn:hover, .icon-btn:active { background:var(--surface3); border-color:var(--border2); color:var(--text); transform:scale(0.95); }
+
+  /* Market ticker strip */
+  .ticker-strip {
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-bottom: 1px solid var(--border);
+    padding: 8px 0;
+    overflow: hidden;
+    position: relative;
+    z-index: 10;
+    animation: slideDown 0.5s 0.1s ease both;
+  }
+  .ticker-inner {
+    display: flex;
+    gap: 32px;
+    animation: tickerScroll 20s linear infinite;
+    white-space: nowrap;
+    width: max-content;
+  }
+  @keyframes tickerScroll {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+  }
+  .ticker-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 11px;
+  }
+  .ticker-name { color: var(--text2); font-weight: 500; }
+  .ticker-val { color: var(--text); font-weight: 600; }
+  .ticker-chg { font-size: 10px; }
+  .up { color: var(--green); }
+  .dn { color: var(--red); }
+
+  /* Search bar */
+  .search-wrap {
+    padding: 14px 20px 0;
+    position: relative;
+    z-index: 10;
+    animation: fadeUp 0.5s 0.15s ease both;
+  }
+  @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+
+  .search-bar {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 12px 16px;
+    transition: border-color 0.2s;
+  }
+  .search-bar:focus-within { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(0,255,136,0.1); }
+  .search-bar input {
+    background: none;
+    border: none;
+    outline: none;
+    color: var(--text);
+    font-family: 'JetBrains Mono', monospace;
+    font-size: 13px;
+    flex: 1;
+  }
+  .search-bar input::placeholder { color: var(--text3); }
+  .search-icon { color: var(--text3); font-size: 15px; }
+
+  /* Section label */
+  .section-label {
+    padding: 16px 20px 8px;
+    font-size: 10px;
+    font-weight: 600;
+    color: var(--text3);
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    position: relative;
+    z-index: 10;
+  }
+
+  /* Active filters row */
+  .active-filters-row {
+    padding: 0 20px 12px;
+    display: flex;
+    gap: 8px;
+    overflow-x: auto;
+    scrollbar-width: none;
+    position: relative;
+    z-index: 10;
+    animation: fadeUp 0.5s 0.2s ease both;
+  }
+  .active-filters-row::-webkit-scrollbar { display:none; }
+
+  .filter-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 6px 12px;
+    font-size: 11px;
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s;
+    animation: chipPop 0.3s ease both;
+  }
+  @keyframes chipPop { from{opacity:0;transform:scale(0.8)} to{opacity:1;transform:scale(1)} }
+  .filter-chip.active {
+    background: rgba(0,255,136,0.08);
+    border-color: rgba(0,255,136,0.3);
+    color: var(--accent);
+  }
+  .filter-chip.active .chip-op { color: var(--accent2); }
+  .filter-chip:hover { transform: scale(0.97); }
+  .chip-label { color: var(--text2); }
+  .chip-op { color: var(--accent2); font-weight: 600; }
+  .chip-val { color: var(--text); font-weight: 600; }
+  .chip-del {
+    color: var(--text3);
+    font-size: 14px;
+    line-height: 1;
+    margin-left: 2px;
+    transition: color 0.15s;
+  }
+  .chip-del:hover { color: var(--red); }
+
+  .add-filter-chip {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: transparent;
+    border: 1px dashed var(--border2);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 11px;
+    color: var(--text3);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: all 0.2s;
+  }
+  .add-filter-chip:hover { border-color:var(--accent); color:var(--accent); }
+
+  /* Results */
+  .results-header {
+    padding: 0 20px 10px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: relative;
+    z-index: 10;
+    animation: fadeUp 0.5s 0.25s ease both;
+  }
+  .results-count { font-size: 12px; color: var(--text2); }
+  .results-count strong { color: var(--accent); font-size: 15px; }
+  .sort-btn {
+    font-size: 11px;
+    color: var(--text2);
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 8px;
+    padding: 5px 10px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    transition: all 0.2s;
+  }
+  .sort-btn:hover { border-color: var(--border2); color: var(--text); }
+
+  /* Stock cards */
+  .stocks-list {
+    padding: 0 20px 100px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    position: relative;
+    z-index: 10;
+  }
+
+  .stock-card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 14px 16px;
+    cursor: pointer;
+    transition: all 0.25s;
+    animation: fadeUp 0.4s ease both;
+    position: relative;
+    overflow: hidden;
+  }
+  .stock-card::before {
+    content: '';
+    position: absolute;
+    left: 0; top: 0; bottom: 0;
+    width: 3px;
+    background: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s;
+  }
+  .stock-card:hover, .stock-card:active {
+    border-color: var(--border2);
+    transform: translateY(-1px);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+  }
+  .stock-card:hover::before { opacity: 1; }
+
+  .card-top {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 10px;
+  }
+  .stock-info {}
+  .stock-symbol {
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--text);
+    letter-spacing: 0.3px;
+  }
+  .stock-name { font-size: 10px; color: var(--text3); margin-top: 2px; }
+  .stock-sector {
+    display: inline-block;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    padding: 2px 6px;
+    font-size: 9px;
+    color: var(--text3);
+    margin-top: 4px;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+  }
+
+  .stock-price-block { text-align: right; }
+  .stock-price {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text);
+  }
+  .stock-chg {
+    font-size: 11px;
+    margin-top: 2px;
+    font-weight: 500;
+  }
+
+  .card-metrics {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border);
+  }
+  .metric {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .metric-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.5px; }
+  .metric-val { font-size: 12px; color: var(--text); font-weight: 500; }
+  .metric-val.highlight { color: var(--accent); }
+  .metric-val.warn { color: var(--accent3); }
+
+  /* Mini sparkline */
+  .sparkline-wrap {
+    height: 30px;
+    margin: 8px 0 0;
+  }
+  .sparkline-wrap svg { width: 100%; height: 100%; }
+
+  /* Bottom nav */
+  .bottom-nav {
+    position: fixed;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%);
+    width: 420px;
+    background: rgba(8,12,16,0.95);
+    backdrop-filter: blur(20px);
+    border-top: 1px solid var(--border);
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0 20px;
+    z-index: 100;
+  }
+  .nav-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 4px;
+    cursor: pointer;
+    transition: all 0.2s;
+    padding: 4px 20px;
+  }
+  .nav-item:active { transform: scale(0.9); }
+  .nav-icon { font-size: 20px; }
+  .nav-label { font-size: 9px; color: var(--text3); letter-spacing: 0.5px; }
+  .nav-item.active .nav-icon { filter: drop-shadow(0 0 6px var(--accent)); }
+  .nav-item.active .nav-label { color: var(--accent); }
+
+  /* ==== FILTER PANEL (bottom sheet) ==== */
+  .sheet-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(4px);
+    z-index: 200;
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.3s;
+  }
+  .sheet-overlay.open { opacity: 1; pointer-events: all; }
+
+  .filter-sheet {
+    position: fixed;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%) translateY(100%);
+    width: 420px;
+    max-height: 90vh;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 24px 24px 0 0;
+    z-index: 201;
+    transition: transform 0.4s cubic-bezier(0.32, 0.72, 0, 1);
+    display: flex;
+    flex-direction: column;
+  }
+  .filter-sheet.open { transform: translateX(-50%) translateY(0); }
+
+  .sheet-handle-wrap {
+    display: flex;
+    justify-content: center;
+    padding: 12px 0 0;
+  }
+  .sheet-handle {
+    width: 36px; height: 4px;
+    background: var(--border2);
+    border-radius: 2px;
+  }
+
+  .sheet-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 14px 20px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sheet-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+  }
+  .sheet-close {
+    width: 30px; height: 30px;
+    background: var(--surface2);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 16px;
+    color: var(--text2);
+    transition: all 0.2s;
+  }
+  .sheet-close:hover { background: var(--surface3); color: var(--red); }
+
+  /* Filter category tabs */
+  .cat-tabs {
+    display: flex;
+    gap: 0;
+    overflow-x: auto;
+    scrollbar-width: none;
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .cat-tabs::-webkit-scrollbar { display: none; }
+  .cat-tab {
+    padding: 6px 14px;
+    font-size: 11px;
+    color: var(--text3);
+    cursor: pointer;
+    border-radius: 20px;
+    white-space: nowrap;
+    transition: all 0.2s;
+    flex-shrink: 0;
+    font-weight: 500;
+    letter-spacing: 0.3px;
+  }
+  .cat-tab.active {
+    background: rgba(0,255,136,0.1);
+    color: var(--accent);
+    font-weight: 600;
+  }
+
+  /* Filter items list */
+  .filter-list {
+    overflow-y: auto;
+    flex: 1;
+    padding: 8px 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border) transparent;
+  }
+
+  .filter-group-label {
+    padding: 12px 20px 6px;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text3);
+    font-weight: 600;
+  }
+
+  .filter-item {
+    display: flex;
+    align-items: center;
+    padding: 12px 20px;
+    cursor: pointer;
+    transition: background 0.15s;
+    border-radius: 0;
+    gap: 12px;
+  }
+  .filter-item:hover, .filter-item:active { background: var(--surface2); }
+  .filter-item.selected { background: rgba(0,255,136,0.04); }
+
+  .filter-item-icon {
+    width: 34px; height: 34px;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 16px;
+    flex-shrink: 0;
+    transition: all 0.2s;
+  }
+  .filter-item.selected .filter-item-icon {
+    background: rgba(0,255,136,0.1);
+    border-color: rgba(0,255,136,0.3);
+  }
+
+  .filter-item-info { flex: 1; }
+  .filter-item-name { font-size: 13px; color: var(--text); font-weight: 500; }
+  .filter-item-desc { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  .filter-item-badge {
+    font-size: 9px;
+    padding: 2px 8px;
+    border-radius: 10px;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+  }
+  .badge-val { background: rgba(0,255,136,0.1); color: var(--accent); border: 1px solid rgba(0,255,136,0.2); }
+  .badge-add { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
+
+  /* ==== VALUE ENTRY PANEL ==== */
+  .value-sheet {
+    position: fixed;
+    bottom: 0; left: 50%;
+    transform: translateX(-50%) translateY(100%);
+    width: 420px;
+    background: var(--surface);
+    border-top: 1px solid var(--border);
+    border-radius: 24px 24px 0 0;
+    z-index: 202;
+    transition: transform 0.35s cubic-bezier(0.32, 0.72, 0, 1);
+    padding-bottom: 30px;
+  }
+  .value-sheet.open { transform: translateX(-50%) translateY(0); }
+
+  .vs-header {
+    padding: 20px 20px 14px;
+    border-bottom: 1px solid var(--border);
+  }
+  .vs-filter-name {
+    font-family: 'Syne', sans-serif;
+    font-size: 18px;
+    font-weight: 700;
+    margin-bottom: 4px;
+  }
+  .vs-filter-desc { font-size: 11px; color: var(--text3); }
+
+  /* Operator selector */
+  .op-selector {
+    display: flex;
+    gap: 8px;
+    padding: 16px 20px;
+  }
+  .op-btn {
+    flex: 1;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 12px;
+    padding: 12px 8px;
+    text-align: center;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .op-btn:active { transform: scale(0.95); }
+  .op-symbol {
+    font-size: 20px;
+    font-weight: 700;
+    display: block;
+    line-height: 1;
+    margin-bottom: 4px;
+  }
+  .op-label { font-size: 9px; color: var(--text3); letter-spacing: 0.5px; text-transform: uppercase; }
+
+  .op-btn.active.gt { background: rgba(0,255,136,0.08); border-color: rgba(0,255,136,0.4); }
+  .op-btn.active.gt .op-symbol { color: var(--green); }
+  .op-btn.active.lt { background: rgba(255,71,87,0.08); border-color: rgba(255,71,87,0.4); }
+  .op-btn.active.lt .op-symbol { color: var(--red); }
+  .op-btn.active.eq { background: rgba(0,196,255,0.08); border-color: rgba(0,196,255,0.4); }
+  .op-btn.active.eq .op-symbol { color: var(--accent2); }
+  .op-btn.active.between { background: rgba(255,107,53,0.08); border-color: rgba(255,107,53,0.4); }
+  .op-btn.active.between .op-symbol { color: var(--accent3); }
+
+  /* Value input display */
+  .value-display {
+    margin: 0 20px;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    border-radius: 14px;
+    padding: 16px 20px;
+    display: flex;
+    align-items: baseline;
+    gap: 4px;
+    min-height: 64px;
+    transition: border-color 0.2s;
+  }
+  .value-display.active { border-color: var(--accent); box-shadow: 0 0 0 1px rgba(0,255,136,0.1); }
+  .val-op-display {
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-right: 6px;
+    min-width: 24px;
+  }
+  .val-number {
+    font-size: 28px;
+    font-weight: 600;
+    color: var(--text);
+    flex: 1;
+    font-family: 'Syne', sans-serif;
+  }
+  .val-cursor {
+    width: 2px; height: 28px;
+    background: var(--accent);
+    animation: blink 1s step-end infinite;
+    margin-left: 2px;
+  }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  .val-unit { font-size: 12px; color: var(--text3); align-self: center; }
+
+  /* Preset values */
+  .presets-label {
+    padding: 14px 20px 8px;
+    font-size: 9px;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: var(--text3);
+    font-weight: 600;
+  }
+  .presets-row {
+    display: flex;
+    gap: 8px;
+    padding: 0 20px 12px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+  .presets-row::-webkit-scrollbar { display: none; }
+  .preset-btn {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 6px 14px;
+    font-size: 11px;
+    color: var(--text2);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+    font-family: 'JetBrains Mono', monospace;
+  }
+  .preset-btn:hover, .preset-btn:active { background: var(--surface3); color: var(--text); border-color: var(--border2); }
+
+  /* Number pad */
+  .numpad {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    padding: 0 20px 16px;
+  }
+  .numpad-key {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    height: 52px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.1s;
+    user-select: none;
+    font-family: 'Syne', sans-serif;
+  }
+  .numpad-key:active { transform: scale(0.93); background: var(--surface3); }
+  .numpad-key.key-zero { }
+  .numpad-key.key-dot { font-size: 22px; font-weight: 700; }
+  .numpad-key.key-del {
+    font-size: 16px;
+    color: var(--text2);
+  }
+  .numpad-key.key-del:active { background: rgba(255,71,87,0.1); border-color: rgba(255,71,87,0.3); color: var(--red); }
+
+  /* Apply btn */
+  .apply-btn {
+    margin: 0 20px;
+    background: var(--accent);
+    color: #000;
+    border-radius: 14px;
+    padding: 14px;
+    text-align: center;
+    font-family: 'Syne', sans-serif;
+    font-size: 15px;
+    font-weight: 700;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+    box-shadow: 0 4px 20px rgba(0,255,136,0.2);
+  }
+  .apply-btn:hover { background: #00e67a; box-shadow: 0 6px 24px rgba(0,255,136,0.3); }
+  .apply-btn:active { transform: scale(0.97); }
+
+  /* Toast */
+  .toast {
+    position: fixed;
+    bottom: 100px; left: 50%;
+    transform: translateX(-50%) translateY(20px);
+    background: var(--surface3);
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    padding: 10px 20px;
+    font-size: 12px;
+    color: var(--text);
+    z-index: 300;
+    opacity: 0;
+    transition: all 0.3s;
+    white-space: nowrap;
+    pointer-events: none;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+  /* Scrollbar */
+  ::-webkit-scrollbar { width: 4px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+  /* Stagger animations */
+  .stock-card:nth-child(1) { animation-delay: 0.3s; }
+  .stock-card:nth-child(2) { animation-delay: 0.35s; }
+  .stock-card:nth-child(3) { animation-delay: 0.4s; }
+  .stock-card:nth-child(4) { animation-delay: 0.45s; }
+  .stock-card:nth-child(5) { animation-delay: 0.5s; }
+  .stock-card:nth-child(6) { animation-delay: 0.55s; }
+</style>
+</head>
+<body>
+
+<div class="ambient"></div>
+
+<div class="phone-shell">
+
+  <!-- Status Bar -->
+  <div class="status-bar">
+    <span>9:41</span>
+    <div class="status-right">
+      <div class="signal-bars">
+        <span></span><span></span><span></span><span></span>
+      </div>
+      <span>WiFi</span>
+      <span>🔋 87%</span>
+    </div>
+  </div>
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div class="logo">Stock<span>Scan</span></div>
+      <div class="header-actions">
+        <div class="icon-btn" title="Saved Screens">💾</div>
+        <div class="icon-btn" onclick="openFilterSheet()" title="All Filters">⚙️</div>
+      </div>
+    </div>
+
+    <!-- Search -->
+    <div class="search-wrap" style="padding:0;">
+      <div class="search-bar">
+        <span class="search-icon">🔍</span>
+        <input type="text" placeholder="Search stocks, sectors…">
+      </div>
+    </div>
+  </div>
+
+  <!-- Market Ticker -->
+  <div class="ticker-strip">
+    <div class="ticker-inner" id="tickerInner">
+      <!-- duplicated for seamless loop -->
+    </div>
+  </div>
+
+  <!-- Active Filters -->
+  <div class="section-label">ACTIVE FILTERS</div>
+  <div class="active-filters-row" id="activeFiltersRow">
+    <div class="add-filter-chip" onclick="openFilterSheet()">＋ Add Filter</div>
+  </div>
+
+  <!-- Results Header -->
+  <div class="results-header">
+    <div class="results-count"><strong id="resultCount">847</strong> stocks found</div>
+    <div class="sort-btn">Sort: Market Cap ↓</div>
+  </div>
+
+  <!-- Stocks List -->
+  <div class="stocks-list" id="stocksList"></div>
+
+</div><!-- /phone-shell -->
+
+<!-- Bottom Nav -->
+<div class="bottom-nav">
+  <div class="nav-item active">
+    <div class="nav-icon">📊</div>
+    <div class="nav-label">SCREEN</div>
+  </div>
+  <div class="nav-item">
+    <div class="nav-icon">📈</div>
+    <div class="nav-label">WATCHLIST</div>
+  </div>
+  <div class="nav-item">
+    <div class="nav-icon">💼</div>
+    <div class="nav-label">PORTFOLIO</div>
+  </div>
+  <div class="nav-item">
+    <div class="nav-icon">🔔</div>
+    <div class="nav-label">ALERTS</div>
+  </div>
+</div>
+
+<!-- Filter Sheet Overlay -->
+<div class="sheet-overlay" id="sheetOverlay" onclick="closeFilterSheet()"></div>
+
+<!-- Filter Category Sheet -->
+<div class="filter-sheet" id="filterSheet">
+  <div class="sheet-handle-wrap"><div class="sheet-handle"></div></div>
+  <div class="sheet-header">
+    <div class="sheet-title">All Filters</div>
+    <div class="sheet-close" onclick="closeFilterSheet()">✕</div>
+  </div>
+
+  <!-- Category Tabs -->
+  <div class="cat-tabs" id="catTabs"></div>
+
+  <!-- Filter Items -->
+  <div class="filter-list" id="filterList"></div>
+</div>
+
+<!-- Value Entry Sheet -->
+<div class="value-sheet" id="valueSheet">
+  <div class="sheet-handle-wrap"><div class="sheet-handle"></div></div>
+  <div class="vs-header">
+    <div class="vs-filter-name" id="vsFilterName">P/E Ratio</div>
+    <div class="vs-filter-desc" id="vsFilterDesc">Price to Earnings ratio</div>
+  </div>
+
+  <!-- Operator Buttons -->
+  <div class="op-selector">
+    <div class="op-btn gt active" data-op=">" onclick="selectOp(this,'>')">
+      <span class="op-symbol">&gt;</span>
+      <span class="op-label">Greater</span>
+    </div>
+    <div class="op-btn lt" data-op="<" onclick="selectOp(this,'<')">
+      <span class="op-symbol">&lt;</span>
+      <span class="op-label">Less</span>
+    </div>
+    <div class="op-btn eq" data-op="=" onclick="selectOp(this,'=')">
+      <span class="op-symbol">=</span>
+      <span class="op-label">Equal</span>
+    </div>
+    <div class="op-btn between" data-op="~" onclick="selectOp(this,'~')">
+      <span class="op-symbol">⇔</span>
+      <span class="op-label">Range</span>
+    </div>
+  </div>
+
+  <!-- Value Display -->
+  <div class="value-display active" id="valueDisplay">
+    <span class="val-op-display" id="valOpDisplay">&gt;</span>
+    <span class="val-number" id="valNumber">0</span>
+    <span class="val-cursor"></span>
+    <span class="val-unit" id="valUnit"></span>
+  </div>
+
+  <!-- Presets -->
+  <div class="presets-label">QUICK VALUES</div>
+  <div class="presets-row" id="presetsRow"></div>
+
+  <!-- Number Pad -->
+  <div class="numpad">
+    <div class="numpad-key" onclick="numInput('1')">1</div>
+    <div class="numpad-key" onclick="numInput('2')">2</div>
+    <div class="numpad-key" onclick="numInput('3')">3</div>
+    <div class="numpad-key" onclick="numInput('4')">4</div>
+    <div class="numpad-key" onclick="numInput('5')">5</div>
+    <div class="numpad-key" onclick="numInput('6')">6</div>
+    <div class="numpad-key" onclick="numInput('7')">7</div>
+    <div class="numpad-key" onclick="numInput('8')">8</div>
+    <div class="numpad-key" onclick="numInput('9')">9</div>
+    <div class="numpad-key key-dot" onclick="numInput('.')">.</div>
+    <div class="numpad-key key-zero" onclick="numInput('0')">0</div>
+    <div class="numpad-key key-del" onclick="numDel()">⌫</div>
+  </div>
+
+  <!-- Apply -->
+  <div class="apply-btn" onclick="applyFilter()">Apply Filter</div>
+</div>
+
+<!-- Toast -->
+<div class="toast" id="toast"></div>
+
+<script>
+// ==================== DATA ====================
+
+const tickerData = [
+  { sym:'NIFTY 50', val:'24,198', chg:'+1.2%', up:true },
+  { sym:'SENSEX', val:'79,486', chg:'+0.9%', up:true },
+  { sym:'BANKNIFTY', val:'51,832', chg:'-0.4%', up:false },
+  { sym:'NIFTY IT', val:'38,240', chg:'+2.1%', up:true },
+  { sym:'NIFTY MID', val:'55,120', chg:'+0.7%', up:true },
+  { sym:'NIFTY SMALL', val:'18,432', chg:'-0.2%', up:false },
+  { sym:'USD/INR', val:'83.42', chg:'-0.1%', up:false },
+  { sym:'GOLD', val:'₹72,450', chg:'+0.5%', up:true },
+];
+
+const filterCategories = [
+  { id:'valuation', label:'📐 Valuation' },
+  { id:'profitability', label:'💰 Profitability' },
+  { id:'growth', label:'🚀 Growth' },
+  { id:'financial', label:'🏦 Financial' },
+  { id:'technical', label:'📉 Technical' },
+  { id:'shareholding', label:'👥 Shareholding' },
+  { id:'dividend', label:'🎁 Dividend' },
+  { id:'size', label:'📦 Size' },
+];
+
+const allFilters = {
+  valuation: [
+    { id:'pe', name:'P/E Ratio', desc:'Price to Earnings', icon:'📊', unit:'x', presets:['5','10','15','20','25','40','50'] },
+    { id:'pb', name:'P/B Ratio', desc:'Price to Book Value', icon:'📗', unit:'x', presets:['0.5','1','1.5','2','3','5'] },
+    { id:'ps', name:'P/S Ratio', desc:'Price to Sales', icon:'💹', unit:'x', presets:['0.5','1','2','3','5','10'] },
+    { id:'ev_ebitda', name:'EV/EBITDA', desc:'Enterprise Value to EBITDA', icon:'🏢', unit:'x', presets:['5','8','10','15','20'] },
+    { id:'peg', name:'PEG Ratio', desc:'P/E to Growth ratio', icon:'📈', unit:'x', presets:['0.5','1','1.5','2','3'] },
+    { id:'ev_sales', name:'EV/Sales', desc:'Enterprise Value to Revenue', icon:'🏷️', unit:'x', presets:['1','2','3','5','10'] },
+    { id:'mcap_sales', name:'Market Cap / Sales', desc:'Market cap to revenue', icon:'💲', unit:'x', presets:['1','2','3','5'] },
+    { id:'intrinsic', name:'Graham Number', desc:'Intrinsic value estimate', icon:'📐', unit:'₹', presets:['100','250','500','1000'] },
+  ],
+  profitability: [
+    { id:'roe', name:'ROE', desc:'Return on Equity (%)', icon:'🎯', unit:'%', presets:['10','15','20','25','30'] },
+    { id:'roce', name:'ROCE', desc:'Return on Capital Employed (%)', icon:'⚡', unit:'%', presets:['10','15','20','25','30'] },
+    { id:'roa', name:'ROA', desc:'Return on Assets (%)', icon:'🏦', unit:'%', presets:['5','8','10','15','20'] },
+    { id:'npm', name:'Net Profit Margin', desc:'Net profit as % of revenue', icon:'💎', unit:'%', presets:['5','10','15','20','30'] },
+    { id:'opm', name:'Operating Margin', desc:'EBIT as % of revenue', icon:'⚙️', unit:'%', presets:['10','15','20','25','30'] },
+    { id:'gpm', name:'Gross Margin', desc:'Gross profit as % of revenue', icon:'🟢', unit:'%', presets:['20','30','40','50','60'] },
+    { id:'ebitda_margin', name:'EBITDA Margin', desc:'EBITDA as % of revenue', icon:'📊', unit:'%', presets:['10','15','20','25','30'] },
+    { id:'asset_turnover', name:'Asset Turnover', desc:'Revenue to assets ratio', icon:'🔄', unit:'x', presets:['0.5','1','1.5','2','3'] },
+  ],
+  growth: [
+    { id:'rev_growth_3y', name:'Revenue Growth (3Y)', desc:'3-year revenue CAGR', icon:'📈', unit:'%', presets:['10','15','20','25','30'] },
+    { id:'profit_growth_3y', name:'Profit Growth (3Y)', desc:'3-year PAT CAGR', icon:'🚀', unit:'%', presets:['10','15','20','25','30'] },
+    { id:'rev_growth_5y', name:'Revenue Growth (5Y)', desc:'5-year revenue CAGR', icon:'📈', unit:'%', presets:['10','15','20','25','30'] },
+    { id:'profit_growth_5y', name:'Profit Growth (5Y)', desc:'5-year PAT CAGR', icon:'🚀', unit:'%', presets:['10','15','20','25','30'] },
+    { id:'rev_growth_ttm', name:'Revenue Growth (TTM)', desc:'Trailing 12m revenue growth', icon:'📊', unit:'%', presets:['5','10','15','20','25'] },
+    { id:'eps_growth', name:'EPS Growth', desc:'Earnings per share growth', icon:'💹', unit:'%', presets:['10','15','20','25','30'] },
+  ],
+  financial: [
+    { id:'debt_equity', name:'Debt / Equity', desc:'Total debt to equity ratio', icon:'⚠️', unit:'x', presets:['0','0.25','0.5','1','2'] },
+    { id:'current_ratio', name:'Current Ratio', desc:'Current assets / liabilities', icon:'⚖️', unit:'x', presets:['1','1.5','2','2.5','3'] },
+    { id:'quick_ratio', name:'Quick Ratio', desc:'Liquid assets / liabilities', icon:'💧', unit:'x', presets:['0.5','1','1.5','2'] },
+    { id:'interest_coverage', name:'Interest Coverage', desc:'EBIT / Interest expense', icon:'🛡️', unit:'x', presets:['2','3','5','8','10'] },
+    { id:'debt_free', name:'Debt Free', desc:'Zero long-term debt', icon:'✅', unit:'', presets:['Yes'] },
+    { id:'cash_flow', name:'Free Cash Flow', desc:'FCF in crores', icon:'💵', unit:'Cr', presets:['100','500','1000','5000'] },
+    { id:'working_capital', name:'Working Capital Days', desc:'Cash conversion cycle', icon:'🔃', unit:'days', presets:['30','60','90','120'] },
+    { id:'promoter_pledge', name:'Promoter Pledge', desc:'% shares pledged', icon:'🔗', unit:'%', presets:['0','5','10','20'] },
+  ],
+  technical: [
+    { id:'rsi', name:'RSI', desc:'14-day Relative Strength Index', icon:'📡', unit:'', presets:['30','40','50','60','70'] },
+    { id:'ema_50', name:'Above 50 EMA', desc:'Price above 50-day EMA', icon:'📉', unit:'', presets:['Yes'] },
+    { id:'ema_200', name:'Above 200 EMA', desc:'Price above 200-day EMA', icon:'📈', unit:'', presets:['Yes'] },
+    { id:'vol_sma', name:'Volume vs Avg', desc:'Volume vs 20-day avg (%)', icon:'📢', unit:'%', presets:['100','150','200','300'] },
+    { id:'52w_high', name:'From 52W High', desc:'% below 52-week high', icon:'🏔️', unit:'%', presets:['5','10','20','30'] },
+    { id:'52w_low', name:'From 52W Low', desc:'% above 52-week low', icon:'🌊', unit:'%', presets:['10','20','30','50'] },
+    { id:'beta', name:'Beta', desc:'1-year beta vs Nifty', icon:'📐', unit:'', presets:['0.5','0.75','1','1.25','1.5'] },
+    { id:'macd', name:'MACD Signal', desc:'MACD above/below signal line', icon:'🔔', unit:'', presets:['Bullish'] },
+  ],
+  shareholding: [
+    { id:'promoter_hold', name:'Promoter Holding', desc:'% held by promoters', icon:'👤', unit:'%', presets:['40','50','55','60','70'] },
+    { id:'fii_hold', name:'FII Holding', desc:'% held by foreign institutions', icon:'🌍', unit:'%', presets:['5','10','15','20'] },
+    { id:'dii_hold', name:'DII Holding', desc:'% held by domestic institutions', icon:'🏛️', unit:'%', presets:['5','10','15','20'] },
+    { id:'public_hold', name:'Public Holding', desc:'% held by public', icon:'👥', unit:'%', presets:['10','20','30','40'] },
+    { id:'promoter_chg', name:'Promoter Change (QoQ)', desc:'Change in promoter % this quarter', icon:'📊', unit:'%', presets:['0','1','2','5'] },
+    { id:'fii_chg', name:'FII Change (QoQ)', desc:'Change in FII holding QoQ', icon:'🌐', unit:'%', presets:['0','1','2','5'] },
+  ],
+  dividend: [
+    { id:'div_yield', name:'Dividend Yield', desc:'Annual dividend as % of price', icon:'💰', unit:'%', presets:['1','2','3','4','5'] },
+    { id:'div_payout', name:'Dividend Payout', desc:'Dividend as % of earnings', icon:'🎁', unit:'%', presets:['20','30','40','50','60'] },
+    { id:'div_5y_avg', name:'5Y Avg Dividend', desc:'Average yield over 5 years', icon:'📅', unit:'%', presets:['1','2','3','4','5'] },
+  ],
+  size: [
+    { id:'market_cap', name:'Market Cap', desc:'Total market capitalisation (Cr)', icon:'🏙️', unit:'Cr', presets:['500','1000','5000','10000','50000'] },
+    { id:'mcap_type', name:'Cap Type', desc:'Large / Mid / Small cap', icon:'📦', unit:'', presets:['Large','Mid','Small'] },
+    { id:'sales', name:'Annual Sales', desc:'Revenue in crores', icon:'💼', unit:'Cr', presets:['500','1000','5000','10000'] },
+    { id:'net_profit', name:'Net Profit', desc:'Annual PAT in crores', icon:'✨', unit:'Cr', presets:['100','500','1000','5000'] },
+    { id:'employees', name:'Employees', desc:'Number of employees', icon:'👨‍💼', unit:'', presets:['500','1000','5000','10000'] },
+  ],
+};
+
+const stocksData = [
+  { sym:'RELIANCE', name:'Reliance Industries Ltd', sector:'Energy', price:'2,924', chg:'+1.4%', up:true, pe:'28.2', pb:'2.1', roe:'17.4%', mcap:'₹19.8L Cr', spark:[40,42,38,45,48,44,50,52,49,55] },
+  { sym:'INFY', name:'Infosys Limited', sector:'IT', price:'1,834', chg:'+2.1%', up:true, pe:'24.6', pb:'7.2', roe:'32.1%', mcap:'₹7.6L Cr', spark:[55,52,58,56,60,62,58,64,66,70] },
+  { sym:'HDFCBANK', name:'HDFC Bank Limited', sector:'Banking', price:'1,642', chg:'-0.3%', up:false, pe:'18.4', pb:'2.8', roe:'16.8%', mcap:'₹12.4L Cr', spark:[70,68,65,67,64,66,62,64,63,62] },
+  { sym:'TCS', name:'Tata Consultancy Services', sector:'IT', price:'3,788', chg:'+1.8%', up:true, pe:'29.1', pb:'12.4', roe:'52.4%', mcap:'₹13.7L Cr', spark:[30,32,35,33,38,40,38,42,44,48] },
+  { sym:'BAJFINANCE', name:'Bajaj Finance Ltd', sector:'NBFC', price:'6,892', chg:'-0.7%', up:false, pe:'32.4', pb:'5.1', roe:'22.3%', mcap:'₹4.2L Cr', spark:[60,58,55,53,50,52,48,50,47,46] },
+  { sym:'PIDILITIND', name:'Pidilite Industries', sector:'Chemicals', price:'2,940', chg:'+0.5%', up:true, pe:'68.2', pb:'18.4', roe:'26.8%', mcap:'₹1.5L Cr', spark:[40,42,44,43,45,44,46,45,47,49] },
+];
+
+// ==================== STATE ====================
+
+let activeFilters = {};
+let currentFilterId = null;
+let currentOp = '>';
+let currentValue = '0';
+let activeCat = 'valuation';
+
+// ==================== INIT ====================
+
+function init() {
+  buildTicker();
+  buildCatTabs();
+  renderFilterList();
+  renderStocks();
+  renderActiveChips();
+}
+
+function buildTicker() {
+  const data = [...tickerData, ...tickerData];
+  const el = document.getElementById('tickerInner');
+  el.innerHTML = data.map(t => `
+    <div class="ticker-item">
+      <span class="ticker-name">${t.sym}</span>
+      <span class="ticker-val">${t.val}</span>
+      <span class="ticker-chg ${t.up ? 'up' : 'dn'}">${t.chg}</span>
+    </div>
+  `).join('');
+}
+
+function buildCatTabs() {
+  const el = document.getElementById('catTabs');
+  el.innerHTML = filterCategories.map(c => `
+    <div class="cat-tab ${c.id === activeCat ? 'active' : ''}" onclick="switchCat('${c.id}')">${c.label}</div>
+  `).join('');
+}
+
+function switchCat(id) {
+  activeCat = id;
+  buildCatTabs();
+  renderFilterList();
+}
+
+function renderFilterList() {
+  const el = document.getElementById('filterList');
+  const filters = allFilters[activeCat] || [];
+  el.innerHTML = filters.map(f => {
+    const active = activeFilters[f.id];
+    const badge = active
+      ? `<div class="filter-item-badge badge-val">${active.op} ${active.val}${f.unit ? ' '+f.unit : ''}</div>`
+      : `<div class="filter-item-badge badge-add">+ ADD</div>`;
+    return `
+      <div class="filter-item ${active ? 'selected' : ''}" onclick="openValueSheet('${f.id}','${activeCat}')">
+        <div class="filter-item-icon">${f.icon}</div>
+        <div class="filter-item-info">
+          <div class="filter-item-name">${f.name}</div>
+          <div class="filter-item-desc">${f.desc}</div>
+        </div>
+        ${badge}
+      </div>
+    `;
+  }).join('');
+}
+
+function renderStocks() {
+  const el = document.getElementById('stocksList');
+  el.innerHTML = stocksData.map((s, i) => {
+    const spark = buildSparkline(s.spark, s.up);
+    return `
+      <div class="stock-card" onclick="showToast('${s.sym} — full detail view coming soon')">
+        <div class="card-top">
+          <div class="stock-info">
+            <div class="stock-symbol">${s.sym}</div>
+            <div class="stock-name">${s.name}</div>
+            <div class="stock-sector">${s.sector}</div>
+          </div>
+          <div class="stock-price-block">
+            <div class="stock-price">₹${s.price}</div>
+            <div class="stock-chg ${s.up ? 'up' : 'dn'}">${s.chg}</div>
+          </div>
+        </div>
+        <div class="sparkline-wrap">${spark}</div>
+        <div class="card-metrics">
+          <div class="metric">
+            <div class="metric-label">P/E</div>
+            <div class="metric-val">${s.pe}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">P/B</div>
+            <div class="metric-val">${s.pb}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">ROE</div>
+            <div class="metric-val highlight">${s.roe}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Mkt Cap</div>
+            <div class="metric-val">${s.mcap}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Filters</div>
+            <div class="metric-val highlight">${Object.keys(activeFilters).length} / ${Object.keys(activeFilters).length || '—'}</div>
+          </div>
+          <div class="metric">
+            <div class="metric-label">Signal</div>
+            <div class="metric-val highlight">BUY ✓</div>
+          </div>
+        </div>
+      </div>
+    `;
+  }).join('');
+}
+
+function buildSparkline(vals, up) {
+  const w = 340, h = 28;
+  const min = Math.min(...vals), max = Math.max(...vals);
+  const range = max - min || 1;
+  const pts = vals.map((v, i) => {
+    const x = (i / (vals.length - 1)) * w;
+    const y = h - ((v - min) / range) * (h - 4) - 2;
+    return `${x},${y}`;
+  });
+  const color = up ? '#00ff88' : '#ff4757';
+  const fill = up ? 'rgba(0,255,136,0.06)' : 'rgba(255,71,87,0.06)';
+  const polyFill = `${pts[0].split(',')[0]},${h} ` + pts.join(' ') + ` ${pts[pts.length-1].split(',')[0]},${h}`;
+  return `<svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none">
+    <polygon points="${polyFill}" fill="${fill}"/>
+    <polyline points="${pts.join(' ')}" fill="none" stroke="${color}" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="${pts[pts.length-1].split(',')[0]}" cy="${pts[pts.length-1].split(',')[1]}" r="2.5" fill="${color}"/>
+  </svg>`;
+}
+
+function renderActiveChips() {
+  const row = document.getElementById('activeFiltersRow');
+  const addBtn = `<div class="add-filter-chip" onclick="openFilterSheet()">＋ Add Filter</div>`;
+  const chips = Object.entries(activeFilters).map(([id, f]) => {
+    const opSym = f.op === '>' ? '&gt;' : f.op === '<' ? '&lt;' : f.op;
+    return `
+      <div class="filter-chip active" onclick="reopenFilter('${id}')">
+        <span class="chip-label">${f.name}</span>
+        <span class="chip-op">${opSym}</span>
+        <span class="chip-val">${f.val}${f.unit ? f.unit : ''}</span>
+        <span class="chip-del" onclick="event.stopPropagation();removeFilter('${id}')">✕</span>
+      </div>
+    `;
+  }).join('');
+  row.innerHTML = addBtn + chips;
+  document.getElementById('resultCount').textContent = Math.max(12, 847 - Object.keys(activeFilters).length * 94);
+}
+
+function removeFilter(id) {
+  delete activeFilters[id];
+  renderActiveChips();
+  renderFilterList();
+  renderStocks();
+  showToast('Filter removed');
+}
+
+function reopenFilter(id) {
+  // find category
+  for (const [cat, filters] of Object.entries(allFilters)) {
+    const f = filters.find(x => x.id === id);
+    if (f) { activeCat = cat; openValueSheet(id, cat); return; }
+  }
+}
+
+// ==================== SHEETS ====================
+
+function openFilterSheet() {
+  document.getElementById('sheetOverlay').classList.add('open');
+  document.getElementById('filterSheet').classList.add('open');
+  document.getElementById('valueSheet').classList.remove('open');
+}
+
+function closeFilterSheet() {
+  document.getElementById('sheetOverlay').classList.remove('open');
+  document.getElementById('filterSheet').classList.remove('open');
+  document.getElementById('valueSheet').classList.remove('open');
+}
+
+function openValueSheet(filterId, cat) {
+  const filters = allFilters[cat];
+  const filter = filters.find(f => f.id === filterId);
+  if (!filter) return;
+
+  currentFilterId = filterId;
+  currentOp = activeFilters[filterId]?.op || '>';
+  currentValue = activeFilters[filterId]?.val || '0';
+
+  document.getElementById('vsFilterName').textContent = filter.name;
+  document.getElementById('vsFilterDesc').textContent = filter.desc;
+  document.getElementById('valUnit').textContent = filter.unit || '';
+
+  // Update operator UI
+  document.querySelectorAll('.op-btn').forEach(b => b.classList.remove('active'));
+  const opMap = { '>':'gt', '<':'lt', '=':'eq', '~':'between' };
+  const opEl = document.querySelector(`.op-btn.${opMap[currentOp]}`);
+  if (opEl) opEl.classList.add('active');
+  updateValDisplay();
+
+  // Presets
+  const presetsEl = document.getElementById('presetsRow');
+  presetsEl.innerHTML = filter.presets.map(p => `
+    <div class="preset-btn" onclick="setPreset('${p}')">${p}${filter.unit ? ' '+filter.unit : ''}</div>
+  `).join('');
+
+  document.getElementById('valueSheet').classList.add('open');
+  document.getElementById('filterSheet').classList.remove('open');
+  document.getElementById('sheetOverlay').classList.add('open');
+}
+
+function updateValDisplay() {
+  const opMap = { '>':'&gt;', '<':'&lt;', '=':'=', '~':'⇔' };
+  const colorMap = { '>':'var(--green)', '<':'var(--red)', '=':'var(--accent2)', '~':'var(--accent3)' };
+  const el = document.getElementById('valOpDisplay');
+  el.innerHTML = opMap[currentOp] || currentOp;
+  el.style.color = colorMap[currentOp] || 'var(--accent)';
+  document.getElementById('valNumber').textContent = currentValue || '0';
+}
+
+function selectOp(el, op) {
+  document.querySelectorAll('.op-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  currentOp = op;
+  updateValDisplay();
+}
+
+function numInput(char) {
+  if (currentValue === '0' && char !== '.') {
+    currentValue = char;
+  } else if (char === '.' && currentValue.includes('.')) {
+    return;
+  } else {
+    if (currentValue.length < 10) currentValue += char;
+  }
+  updateValDisplay();
+  // Pulse
+  const display = document.getElementById('valueDisplay');
+  display.style.borderColor = 'var(--accent)';
+  setTimeout(() => display.style.borderColor = '', 300);
+}
+
+function numDel() {
+  if (currentValue.length <= 1) { currentValue = '0'; }
+  else { currentValue = currentValue.slice(0, -1); }
+  updateValDisplay();
+}
+
+function setPreset(val) {
+  currentValue = val;
+  updateValDisplay();
+  // pulse effect
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    if (b.textContent.startsWith(val)) {
+      b.style.background = 'rgba(0,255,136,0.15)';
+      b.style.borderColor = 'rgba(0,255,136,0.4)';
+      b.style.color = 'var(--accent)';
+      setTimeout(() => { b.style.background=''; b.style.borderColor=''; b.style.color=''; }, 400);
+    }
+  });
+}
+
+function applyFilter() {
+  if (!currentFilterId) return;
+  // Find filter info
+  let filter = null;
+  for (const filters of Object.values(allFilters)) {
+    const f = filters.find(x => x.id === currentFilterId);
+    if (f) { filter = f; break; }
+  }
+  if (!filter) return;
+
+  activeFilters[currentFilterId] = {
+    id: currentFilterId,
+    name: filter.name,
+    op: currentOp,
+    val: currentValue,
+    unit: filter.unit || '',
+  };
+
+  closeFilterSheet();
+  renderActiveChips();
+  renderFilterList();
+  renderStocks();
+  showToast(`${filter.name} ${currentOp} ${currentValue}${filter.unit ? ' '+filter.unit : ''} applied ✓`);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+
+init();
+</script>
+</body>
+</html>

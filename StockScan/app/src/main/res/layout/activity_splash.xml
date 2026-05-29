@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<androidx.constraintlayout.widget.ConstraintLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@color/bg_dark"
+    android:fitsSystemWindows="false">
+
+    <!-- Ambient glow top-left -->
+    <View
+        android:layout_width="280dp"
+        android:layout_height="280dp"
+        android:background="@drawable/glow_circle_green"
+        android:alpha="0.25"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        android:translationX="-80dp"
+        android:translationY="-80dp"/>
+
+    <!-- Ambient glow bottom-right -->
+    <View
+        android:layout_width="220dp"
+        android:layout_height="220dp"
+        android:background="@drawable/glow_circle_blue"
+        android:alpha="0.2"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:translationX="60dp"
+        android:translationY="60dp"/>
+
+    <!-- Logo -->
+    <TextView
+        android:id="@+id/tvLogo"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Stock@Scan"
+        android:textSize="42sp"
+        android:textStyle="bold"
+        android:fontFamily="@font/syne_bold"
+        android:textColor="@color/text_primary"
+        android:letterSpacing="-0.02"
+        app:layout_constraintBottom_toTopOf="@id/tvTagline"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="12dp"/>
+
+    <!-- Tagline -->
+    <TextView
+        android:id="@+id/tvTagline"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="NSE · BSE · SCREENER"
+        android:textSize="11sp"
+        android:textColor="@color/text_tertiary"
+        android:letterSpacing="0.2"
+        android:fontFamily="@font/jetbrains_mono"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        app:layout_constraintTop_toTopOf="parent"/>
+
+    <!-- Version -->
+    <TextView
+        android:id="@+id/tvVersion"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="v1.0.0"
+        android:textSize="10sp"
+        android:textColor="@color/text_tertiary"
+        android:fontFamily="@font/jetbrains_mono"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent"
+        android:layout_marginBottom="40dp"/>
+
+    <!-- Loading dots -->
+    <LinearLayout
+        android:id="@+id/loadingDots"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:gravity="center"
+        android:layout_marginBottom="80dp"
+        app:layout_constraintBottom_toBottomOf="parent"
+        app:layout_constraintStart_toStartOf="parent"
+        app:layout_constraintEnd_toEndOf="parent">
+
+        <View android:layout_width="6dp" android:layout_height="6dp"
+            android:background="@drawable/dot_green" android:layout_marginEnd="6dp"/>
+        <View android:layout_width="6dp" android:layout_height="6dp"
+            android:background="@drawable/dot_dim" android:layout_marginEnd="6dp"/>
+        <View android:layout_width="6dp" android:layout_height="6dp"
+            android:background="@drawable/dot_dim"/>
+    </LinearLayout>
+
+</androidx.constraintlayout.widget.ConstraintLayout>
