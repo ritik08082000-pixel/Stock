@@ -3,17 +3,6 @@ workflows:
     name: Android Build Workflow
     max_build_duration: 60
     instance_type: mac_mini_m1
-    environment:
-      groups:
-        - android-signing
-      vars:
-        PACKAGE_NAME: "com.stockscan"
-      node: latest
-    triggering:
-      events:
-        - push
-      condition:
-        branch: main
     scripts:
       - name: Set up local.properties
         script: |
