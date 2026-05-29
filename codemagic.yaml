@@ -10,6 +10,7 @@ workflows:
       - name: Build Android APK
         script: |
           cd StockScan
+          gradle wrapper
           chmod +x gradlew
           ./gradlew assembleDebug
     artifacts:
