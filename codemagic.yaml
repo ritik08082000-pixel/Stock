@@ -12,7 +12,7 @@ workflows:
     triggering:
       events:
         - push
-      when:
+      condition:
         branch: main
     scripts:
       - name: Set up local.properties
